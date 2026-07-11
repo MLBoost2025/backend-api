@@ -1,4 +1,5 @@
 const judgeService = require('../services/judge.service');
+const { validateExecutionInput } = require('../utils/codeGuard');
 
 /**
  * Run code with custom input (no database save)
@@ -8,14 +9,15 @@ exports.runCode = async (req, res) => {
   try {
     const { code, languageId, customInput } = req.body;
 
-    if (!code || !languageId) {
-      return res.status(400).json({ message: 'Code and language are required' });
+    const check = validateExecutionInput({ code, languageId });
+    if (!check.ok) {
+      return res.status(check.status).json({ message: check.message });
     }
 
     // Execute on Judge0 using the same pattern as submission controller
     const result = await judgeService.execute(
       Buffer.from(code).toString('base64'),
-      languageId,
+      check.languageId,
       Buffer.from(customInput || '').toString('base64'),
       null // No expected output for custom runs
     );

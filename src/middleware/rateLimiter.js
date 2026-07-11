@@ -1,14 +1,32 @@
 const rateLimit = require('express-rate-limit');
 
-const limiter = rateLimit({
+const message = (msg) => ({ status: 429, message: msg });
+
+// General API limiter — applied to all /api routes.
+const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // Limit each IP to 100 requests per windowMs
-    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-    message: {
-        status: 429,
-        message: 'Too many requests, please try again later.'
-    }
+    max: 300,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: message('Too many requests, please try again later.'),
 });
 
-module.exports = limiter;
+// Strict limiter for authentication endpoints (brute-force protection).
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: message('Too many authentication attempts, please try again later.'),
+});
+
+// Limiter for the untrusted-code execution endpoints (run/submit).
+const executionLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: 15,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: message('Too many code executions, please slow down.'),
+});
+
+module.exports = { apiLimiter, authLimiter, executionLimiter };

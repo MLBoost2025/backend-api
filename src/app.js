@@ -1,8 +1,10 @@
 const express = require("express");
 const cors = require("cors");
+const helmet = require("helmet");
 const cookieParser = require("cookie-parser");
 const connectDB = require('./config/db');
-const { BACKEND_PORT } = require('./config/env');
+const { BACKEND_PORT, CORS_ORIGIN } = require('./config/env');
+const { apiLimiter, authLimiter, executionLimiter } = require('./middleware/rateLimiter');
 
 const authRoutes = require('./routes/auth.routes');
 const userRoutes = require('./routes/user.routes');
@@ -13,33 +15,61 @@ const adminRoutes = require('./routes/admin.routes');
 
 const app = express();
 
-// Middleware
-app.use(express.json());
+// Security headers
+app.use(helmet());
+
+// Body parsing with a size limit to bound request payloads
+app.use(express.json({ limit: '100kb' }));
 app.use(cookieParser());
+
+// CORS — origins configured via env (comma-separated CORS_ORIGIN)
 app.use(cors({
-    origin: 'http://localhost:5173',
+    origin: CORS_ORIGIN,
     credentials: true
 }));
 
-// Database Connection
-connectDB();
+// Health check (before rate limiting so probes are never throttled)
+app.get("/health", (req, res) => {
+    res.status(200).json({ status: 'ok' });
+});
 
-// Routes
-app.use('/api/auth', authRoutes);
+// General API rate limiting
+app.use('/api', apiLimiter);
+
+// Routes (auth + execution endpoints get stricter dedicated limiters)
+app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/problems', problemRoutes);
-app.use('/api/submissions', submissionRoutes);
-app.use('/api/runner', require('./routes/runner.routes'));
+app.use('/api/submissions', executionLimiter, submissionRoutes);
+app.use('/api/runner', executionLimiter, require('./routes/runner.routes'));
 app.use('/api/contests', contestRoutes);
 app.use('/api/admin', adminRoutes);
 
-app.get("/health", (req, res) => {
-    res.status(200).send("everything working fine!");
+// 404 handler
+app.use((req, res) => {
+    res.status(404).json({ message: 'Not Found' });
 });
 
-app.listen(BACKEND_PORT, (err) => {
-    if (err) console.log("error :-", err);
-    console.log(`server running on the port ${BACKEND_PORT}`);
+// Global error handler
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+    console.error('Unhandled error:', err);
+    const status = err.status || 500;
+    res.status(status).json({
+        message: status === 500 ? 'Internal Server Error' : err.message,
+    });
 });
+
+// Start the server only after the database connection is established.
+async function start() {
+    await connectDB();
+    app.listen(BACKEND_PORT, () => {
+        console.log(`server running on the port ${BACKEND_PORT}`);
+    });
+}
+
+if (require.main === module) {
+    start();
+}
 
 module.exports = app;
