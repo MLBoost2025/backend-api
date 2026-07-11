@@ -137,7 +137,12 @@ exports.refresh = async (req, res) => {
 };
 
 exports.logout = (req, res) => {
-    res.clearCookie('refreshToken');
+    // Mirror the attributes used when the cookie was set so browsers clear it.
+    res.clearCookie('refreshToken', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+    });
     res.status(204).send();
 };
 

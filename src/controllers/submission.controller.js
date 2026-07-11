@@ -2,11 +2,18 @@ const Submission = require('../models/Submission');
 const Problem = require('../models/Problem');
 const Testcase = require('../models/Testcase');
 const judgeService = require('../services/judge.service');
+const { validateExecutionInput } = require('../utils/codeGuard');
 
 exports.submitCode = async (req, res) => {
   try {
     const { problemId, code, languageId } = req.body;
     const userId = req.user.id;
+
+    // 0. Validate untrusted execution input (language allow-list + size cap)
+    const check = validateExecutionInput({ code, languageId });
+    if (!check.ok) {
+      return res.status(check.status).json({ message: check.message });
+    }
 
     // 1. Validate Problem
     const problem = await Problem.findById(problemId);

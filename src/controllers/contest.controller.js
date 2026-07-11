@@ -54,11 +54,11 @@ exports.registerForContest = async (req, res) => {
         const contest = await Contest.findById(req.params.id);
         if (!contest) return res.status(404).json({ message: 'Contest not found' });
         
-        if (contest.participants.includes(req.user.userId)) {
+        if (contest.participants.some((p) => String(p) === String(req.user.id))) {
             return res.status(400).json({ message: 'Already registered' });
         }
 
-        contest.participants.push(req.user.userId);
+        contest.participants.push(req.user.id);
         await contest.save();
         res.json({ message: 'Registered successfully' });
     } catch (err) {

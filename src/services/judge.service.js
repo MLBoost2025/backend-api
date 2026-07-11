@@ -1,16 +1,19 @@
 const axios = require('axios');
 
-const { JUDGE0_URL } = require('../config/env');
+const { JUDGE0_URL, JUDGE0_AUTH_TOKEN } = require('../config/env');
 
 const JUDGE0_API_URL = JUDGE0_URL;
 
 class JudgeService {
   constructor() {
+    const headers = { 'Content-Type': 'application/json' };
+    // Authenticate to Judge0 when a token is configured (AUTHN_TOKEN in judge0.conf).
+    if (JUDGE0_AUTH_TOKEN) {
+      headers['X-Auth-Token'] = JUDGE0_AUTH_TOKEN;
+    }
     this.api = axios.create({
       baseURL: JUDGE0_API_URL,
-      headers: {
-        'Content-Type': 'application/json'
-      }
+      headers,
     });
   }
 
@@ -24,8 +27,6 @@ class JudgeService {
    */
   async execute(sourceCode, languageId, stdin, expectedOutput) {
     try {
-      console.log('Sending to Judge0:', { source_code: sourceCode, language_id: languageId, stdin, expected_output: expectedOutput });
-      
       const payload = {
         source_code: sourceCode,
         language_id: languageId,
@@ -56,10 +57,12 @@ class JudgeService {
       const results = [];
       for (const sub of submissions) {
         const result = await this.execute(
-          Buffer.from(sub.source_code).toString('base64'), 
-          sub.language_id, 
-          Buffer.from(sub.stdin).toString('base64'), 
-          Buffer.from(sub.expected_output).toString('base64')
+          Buffer.from(sub.source_code || '').toString('base64'),
+          sub.language_id,
+          Buffer.from(sub.stdin || '').toString('base64'),
+          sub.expected_output != null
+            ? Buffer.from(sub.expected_output).toString('base64')
+            : null
         );
         results.push(result);
       }
