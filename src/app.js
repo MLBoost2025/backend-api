@@ -46,6 +46,7 @@ app.use('/api/submissions', executionLimiter, submissionRoutes);
 app.use('/api/runner', executionLimiter, require('./routes/runner.routes'));
 app.use('/api/contests', contestRoutes);
 app.use('/api/leaderboard', require('./routes/leaderboard.routes'));
+app.use('/api/learn', require('./routes/learn.routes'));
 app.use('/api/admin', adminRoutes);
 
 // 404 handler
