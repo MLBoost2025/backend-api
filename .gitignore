@@ -1,2 +1,24 @@
+# Dependencies
+node_modules/
+
+# Environment
 .env
-node_modules
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor cruft
+.DS_Store
+*.swp
+
+# Build / temp
+dist/
+build/
+temp/
+*.zip
+
+# Local scratch
+submission.json
